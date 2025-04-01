@@ -19,7 +19,7 @@ AdGuard Runner provides a convenient way to start, stop, and check the status of
 
 1. Clone this repository:
    ```bash
-   git clone https://github.com/yourusername/adguard-runner.git
+   git clone https://github.com/geortick/adguard-runner.git
    cd adguard-runner
    ```
 
@@ -46,7 +46,7 @@ AdGuard Runner provides a convenient way to start, stop, and check the status of
 
 1. Clone this repository:
    ```bash
-   git clone https://github.com/yourusername/adguard-runner.git
+   git clone https://github.com/geortick/adguard-runner.git
    cd adguard-runner
    ```
 
