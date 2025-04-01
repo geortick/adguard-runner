@@ -1,0 +1,526 @@
+#!/usr/bin/env python3
+"""
+AdGuard CLI Runner
+
+A feature-rich script to control AdGuard CLI via KRunner or terminal.
+This script provides an interactive interface for starting, stopping, and checking
+the status of AdGuard CLI with visual feedback and terminal enhancements.
+
+Usage:
+    adguard-runner          - Interactive menu mode
+    adguard-runner start    - Start AdGuard CLI
+    adguard-runner stop     - Stop AdGuard CLI
+    adguard-runner status   - Check if AdGuard CLI is running
+
+Features:
+    - Color-coded output for better readability
+    - Interactive menu when run without arguments
+    - Progress indicators during operations
+    - Terminal detection and handling
+    - Countdown timers and wait prompts
+    - Enhanced status display with visual indicators
+"""
+
+import subprocess
+import sys
+import os
+import re
+import time
+import signal
+import threading
+import shutil
+import platform
+from typing import Tuple, List, Optional, Callable
+
+
+# Path to the AdGuard CLI executable
+ADGUARD_CLI_PATH = "/opt/adguard-cli/adguard-cli"
+
+# Terminal colors and styling
+class Colors:
+    """ANSI color codes for terminal output styling"""
+    RESET = "\033[0m"
+    BOLD = "\033[1m"
+    DIM = "\033[2m"
+    ITALIC = "\033[3m"
+    UNDERLINE = "\033[4m"
+    
+    # Foreground colors
+    BLACK = "\033[30m"
+    RED = "\033[31m"
+    GREEN = "\033[32m"
+    YELLOW = "\033[33m"
+    BLUE = "\033[34m"
+    MAGENTA = "\033[35m"
+    CYAN = "\033[36m"
+    WHITE = "\033[37m"
+    
+    # Background colors
+    BG_BLACK = "\033[40m"
+    BG_RED = "\033[41m"
+    BG_GREEN = "\033[42m"
+    BG_YELLOW = "\033[43m"
+    BG_BLUE = "\033[44m"
+    BG_MAGENTA = "\033[45m"
+    BG_CYAN = "\033[46m"
+    BG_WHITE = "\033[47m"
+
+# Terminal capabilities and dimensions
+TERM_WIDTH = shutil.get_terminal_size().columns
+SUPPORTS_COLOR = sys.stdout.isatty() and platform.system() != "Windows"
+
+class Spinner:
+    """A simple spinner to show progress during long operations"""
+    def __init__(self, message: str = "Processing"):
+        self.message = message
+        self.spinning = False
+        self.spinner_chars = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏']
+        self.spinner_idx = 0
+        self.thread = None
+
+    def spin(self):
+        """Spin animation in a separate thread"""
+        while self.spinning:
+            if SUPPORTS_COLOR:
+                sys.stdout.write(f"\r{Colors.CYAN}{self.message}{Colors.RESET} {self.spinner_chars[self.spinner_idx]} ")
+            else:
+                sys.stdout.write(f"\r{self.message} {self.spinner_chars[self.spinner_idx]} ")
+            sys.stdout.flush()
+            self.spinner_idx = (self.spinner_idx + 1) % len(self.spinner_chars)
+            time.sleep(0.1)
+
+    def start(self):
+        """Start the spinner"""
+        self.spinning = True
+        self.thread = threading.Thread(target=self.spin)
+        self.thread.daemon = True
+        self.thread.start()
+
+    def stop(self):
+        """Stop the spinner and clear the line"""
+        self.spinning = False
+        if self.thread and self.thread.is_alive():
+            self.thread.join()
+        sys.stdout.write("\r" + " " * (len(self.message) + 10) + "\r")
+        sys.stdout.flush()
+
+def print_header(text: str) -> None:
+    """Print a styled header text"""
+    if SUPPORTS_COLOR:
+        print(f"\n{Colors.BOLD}{Colors.BLUE}{'=' * 50}{Colors.RESET}")
+        print(f"{Colors.BOLD}{Colors.BLUE}  {text}{Colors.RESET}")
+        print(f"{Colors.BOLD}{Colors.BLUE}{'=' * 50}{Colors.RESET}\n")
+    else:
+        print(f"\n{'=' * 50}")
+        print(f"  {text}")
+        print(f"{'=' * 50}\n")
+
+def print_success(text: str) -> None:
+    """Print a success message"""
+    if SUPPORTS_COLOR:
+        print(f"{Colors.GREEN}✓ {text}{Colors.RESET}")
+    else:
+        print(f"SUCCESS: {text}")
+
+def print_error(text: str) -> None:
+    """Print an error message"""
+    if SUPPORTS_COLOR:
+        print(f"{Colors.RED}✗ {text}{Colors.RESET}")
+    else:
+        print(f"ERROR: {text}")
+
+def print_info(text: str) -> None:
+    """Print an informational message"""
+    if SUPPORTS_COLOR:
+        print(f"{Colors.CYAN}ℹ {text}{Colors.RESET}")
+    else:
+        print(f"INFO: {text}")
+
+def print_warning(text: str) -> None:
+    """Print a warning message"""
+    if SUPPORTS_COLOR:
+        print(f"{Colors.YELLOW}⚠ {text}{Colors.RESET}")
+    else:
+        print(f"WARNING: {text}")
+        
+def wait_for_keypress(message: str = "Press Enter to continue...") -> None:
+    """
+    Wait for the user to press a key
+    
+    Args:
+        message: Custom message to display (defaults to "Press Enter to continue...")
+    """
+    if SUPPORTS_COLOR:
+        input(f"{Colors.YELLOW}{message}{Colors.RESET}")
+    else:
+        input(message)
+
+
+def run_command(args: List[str], show_spinner: bool = False) -> Tuple[bool, str]:
+    """
+    Run a subprocess command and handle errors
+    
+    Args:
+        args: List of command arguments
+        show_spinner: Whether to show a spinner during command execution
+        
+    Returns:
+        tuple: (success, message)
+    """
+    spinner = None
+    if show_spinner:
+        spinner = Spinner(f"Running command: {' '.join(args)}")
+        spinner.start()
+        
+    try:
+        result = subprocess.run(
+            args,
+            capture_output=True,
+            text=True,
+            check=False
+        )
+        
+        # Stop the spinner if it's running
+        if spinner:
+            spinner.stop()
+            
+        # Check if the command was successful
+        if result.returncode == 0:
+            return True, result.stdout.strip()
+        else:
+            return False, f"Error: {result.stderr.strip()}"
+    except FileNotFoundError:
+        if spinner:
+            spinner.stop()
+        return False, f"Error: AdGuard CLI not found at {ADGUARD_CLI_PATH}"
+    except PermissionError:
+        if spinner:
+            spinner.stop()
+        return False, "Error: Permission denied when running AdGuard CLI"
+    except Exception as e:
+        if spinner:
+            spinner.stop()
+        return False, f"Error: {str(e)}"
+
+
+def start_adguard() -> str:
+    """
+    Start AdGuard CLI with visual feedback.
+    
+    Returns:
+        str: Status message
+    """
+    print_info("Starting AdGuard CLI...")
+    success, message = run_command([ADGUARD_CLI_PATH, "start"], show_spinner=True)
+    
+    if success:
+        print_success("AdGuard started successfully!")
+        return "AdGuard started"
+    else:
+        print_error(f"Failed to start AdGuard: {message}")
+        return message
+
+
+def stop_adguard() -> str:
+    """
+    Stop AdGuard CLI with visual feedback.
+    
+    Returns:
+        str: Status message
+    """
+    print_info("Stopping AdGuard CLI...")
+    success, message = run_command([ADGUARD_CLI_PATH, "stop"], show_spinner=True)
+    
+    if success:
+        print_success("AdGuard stopped successfully!")
+        return "AdGuard stopped"
+    else:
+        print_error(f"Failed to stop AdGuard: {message}")
+        return message
+
+
+def is_adguard_process_running() -> bool:
+    """
+    Check if AdGuard process is running using ps command.
+    
+    Returns:
+        bool: True if running, False otherwise
+    """
+    try:
+        # Look for adguard-cli process
+        spinner = Spinner("Checking AdGuard process")
+        spinner.start()
+        
+        result = subprocess.run(
+            ["ps", "-ef"],
+            capture_output=True,
+            text=True,
+            check=False
+        )
+        
+        spinner.stop()
+        
+        # Search for the adguard-cli process in the output
+        for line in result.stdout.split('\n'):
+            if "adguard-cli" in line and not "adguard-runner" in line:
+                # Exclude grep and this script itself
+                return True
+        return False
+    except Exception as e:
+        print_error(f"Process check error: {str(e)}")
+        return False
+
+
+def get_adguard_status() -> str:
+    """
+    Check if AdGuard CLI is running with visual feedback and color coding.
+    
+    Returns:
+        str: Status message with color formatting if supported
+    """
+    print_info("Checking AdGuard CLI status...")
+    success, message = run_command([ADGUARD_CLI_PATH, "status"], show_spinner=True)
+    
+    # Regular case - CLI command was successful
+    if success:
+        # Handle the exact output strings from the AdGuard CLI
+        if "AdGuard Home is running" in message:
+            if SUPPORTS_COLOR:
+                return f"{Colors.GREEN}AdGuard is running{Colors.RESET}"
+            return "AdGuard is running"
+        elif "AdGuard Home is not running" in message or "not running" in message.lower():
+            if SUPPORTS_COLOR:
+                return f"{Colors.RED}AdGuard is not running{Colors.RESET}"
+            return "AdGuard is not running"
+        else:
+            # For any unexpected successful response, return the actual message
+            if SUPPORTS_COLOR:
+                return f"{Colors.CYAN}{message}{Colors.RESET}"
+            return message
+    
+    # CLI status command failed, fall back to process check
+    is_running = is_adguard_process_running()
+    if is_running:
+        if SUPPORTS_COLOR:
+            return f"{Colors.YELLOW}AdGuard appears to be running (status command failed){Colors.RESET}"
+        return "AdGuard appears to be running (status command failed)"
+    else:
+        # If both methods indicate not running, return a clear message
+        if SUPPORTS_COLOR:
+            return f"{Colors.RED}AdGuard is not running{Colors.RESET}"
+        return "AdGuard is not running"
+
+def is_terminal() -> bool:
+    """
+    Check if script is running in a proper terminal using multiple methods
+    
+    Returns:
+        bool: True if running in an interactive terminal, False otherwise
+    """
+    # Multiple checks for more accurate terminal detection
+    stdout_tty = sys.stdout.isatty()
+    stdin_tty = sys.stdin.isatty()
+    term_env = os.environ.get('TERM') is not None and os.environ.get('TERM') != 'dumb'
+    
+    # Add debug output
+    debug_info = f"Terminal detection: STDOUT_TTY={stdout_tty}, STDIN_TTY={stdin_tty}, TERM_ENV={term_env}"
+    with open("/tmp/adguard-runner-debug.log", "a") as f:
+        f.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} - {debug_info}\n")
+    
+    # Consider a terminal present if any of these conditions are met
+    return stdout_tty or stdin_tty or term_env
+
+def is_krunner_mode() -> bool:
+    """Check if script is likely being run from KRunner"""
+    # More reliable KRunner detection
+    # KRunner typically sets DESKTOP_STARTUP_ID or KDE_FULL_SESSION environment variables
+    # Or runs without a proper terminal and with DBUS_SESSION_BUS_ADDRESS
+    is_kde = 'KDE_FULL_SESSION' in os.environ or 'DESKTOP_STARTUP_ID' in os.environ
+    is_dbus = 'DBUS_SESSION_BUS_ADDRESS' in os.environ
+    no_terminal = not is_terminal()
+    
+    # Debug output (will only show when redirected to a file or in a terminal)
+    debug_info = f"KRunner detection: KDE={is_kde}, DBUS={is_dbus}, NO_TERM={no_terminal}"
+    with open("/tmp/adguard-runner-debug.log", "a") as f:
+        f.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} - {debug_info}\n")
+    
+    return (is_kde and no_terminal) or (is_dbus and no_terminal)
+
+def launch_in_terminal(args: Optional[List[str]] = None) -> None:
+    """
+    Re-launch the script in a terminal when run from KRunner
+    
+    Args:
+        args: Optional arguments to pass to the script
+    """
+    # Determine which terminal emulator to use based on availability
+    terminal_emulators = [
+        # KDE
+        ["konsole", "--noclose", "-e"],
+        # GNOME
+        ["gnome-terminal", "--", "bash", "-c"],
+        # XFCE
+        ["xfce4-terminal", "--hold", "-e"],
+        # Generic
+        ["x-terminal-emulator", "-e"],
+    ]
+    
+    for terminal in terminal_emulators:
+        try:
+            # Check if terminal emulator is available
+            subprocess.run(["which", terminal[0]], 
+                           capture_output=True, check=False)
+            
+            # Construct the command with proper quoting
+            script_path = os.path.abspath(sys.argv[0])
+            cmd = terminal[:] 
+            
+            if terminal[0] == "gnome-terminal":
+                # Special handling for gnome-terminal
+                command_str = f"{script_path}"
+                if args:
+                    command_str += f" {' '.join(args)}"
+                command_str += "; echo 'Press Enter to close...'; read"
+                cmd.append(command_str)
+            else:
+                cmd.append(script_path)
+                if args:
+                    cmd.extend(args)
+            
+            subprocess.run(cmd)
+            sys.exit(0)
+            
+        except (subprocess.SubprocessError, FileNotFoundError):
+            continue
+    
+    # If no terminal emulator was found, print an error
+    print_error("No suitable terminal emulator found. Please run this script in a terminal.")
+    sys.exit(1)
+
+def show_interactive_menu() -> None:
+    """
+    Show an interactive menu for the script
+    """
+    # Clear screen for better visibility
+    os.system('clear' if os.name != 'nt' else 'cls')
+    
+    # Show the header
+    if SUPPORTS_COLOR:
+        print(f"\n{Colors.BOLD}{Colors.CYAN}╔{'═' * (TERM_WIDTH - 2)}╗{Colors.RESET}")
+        print(f"{Colors.BOLD}{Colors.CYAN}║{' ' * (TERM_WIDTH - 2)}║{Colors.RESET}")
+        title = "AdGuard CLI Runner"
+        padding = (TERM_WIDTH - len(title) - 2) // 2
+        print(f"{Colors.BOLD}{Colors.CYAN}║{' ' * padding}{title}{' ' * (TERM_WIDTH - padding - len(title) - 2)}║{Colors.RESET}")
+        print(f"{Colors.BOLD}{Colors.CYAN}║{' ' * (TERM_WIDTH - 2)}║{Colors.RESET}")
+        print(f"{Colors.BOLD}{Colors.CYAN}╚{'═' * (TERM_WIDTH - 2)}╝{Colors.RESET}\n")
+    else:
+        print_header("AdGuard CLI Runner")
+    
+    # Show current status
+    status = get_adguard_status()
+    print(f"Current status: {status}\n")
+    
+    # Menu options
+    print("Please select an option:")
+    print(f"  {Colors.GREEN}1{Colors.RESET}. Start AdGuard" if SUPPORTS_COLOR else "  1. Start AdGuard")
+    print(f"  {Colors.RED}2{Colors.RESET}. Stop AdGuard" if SUPPORTS_COLOR else "  2. Stop AdGuard")
+    print(f"  {Colors.CYAN}3{Colors.RESET}. Check Status" if SUPPORTS_COLOR else "  3. Check Status")
+    print(f"  {Colors.YELLOW}4{Colors.RESET}. Exit" if SUPPORTS_COLOR else "  4. Exit")
+    
+    # Get user choice with input validation
+    while True:
+        try:
+            choice = input("\nEnter your choice (1-4): ")
+            choice = int(choice)
+            if 1 <= choice <= 4:
+                break
+            else:
+                print_warning("Please enter a number between 1 and 4.")
+        except ValueError:
+            print_warning("Please enter a valid number.")
+    
+    # Process the user's choice
+    if choice == 1:
+        # Start AdGuard
+        print("\n")
+        result = start_adguard()
+        print(f"\n{result}")
+        wait_for_keypress()
+        # Recursively show menu again
+        show_interactive_menu()
+    elif choice == 2:
+        # Stop AdGuard
+        print("\n")
+        result = stop_adguard()
+        print(f"\n{result}")
+        wait_for_keypress()
+        # Recursively show menu again
+        show_interactive_menu()
+    elif choice == 3:
+        # Show status
+        print("\n")
+        status = get_adguard_status()
+        print(f"\nStatus: {status}")
+        wait_for_keypress()
+        # Recursively show menu again
+        show_interactive_menu()
+    elif choice == 4:
+        # Exit
+        print_info("Exiting AdGuard Runner...")
+        sys.exit(0)
+
+def main():
+    """Parse arguments and execute the appropriate command."""
+    # Check if script needs to be launched in a terminal
+    krunner_detected = is_krunner_mode()
+    
+    # Add debug output
+    if krunner_detected:
+        print_info("Running from KRunner - ensuring terminal visibility")
+        
+    if krunner_detected and not is_terminal():
+        launch_in_terminal(sys.argv[1:] if len(sys.argv) > 1 else None)
+    
+    # No arguments - show interactive menu
+    if len(sys.argv) == 1:
+        show_interactive_menu()
+        return
+        
+    # Verify the arguments when provided
+    if len(sys.argv) != 2:
+        print("Error: Invalid number of arguments")
+        print("Usage: adguard-runner [start|stop|status]")
+        sys.exit(1)
+
+    # Get the command
+    command = sys.argv[1].lower()
+
+    # Execute the appropriate command
+    if command == "start":
+        result = start_adguard()
+        print(f"\n{result}\n")
+        # Always add a delay and wait for keypress for consistent behavior
+        time.sleep(2)  # Give users time to read the output
+        wait_for_keypress("Press Enter to close...")
+    elif command == "stop":
+        result = stop_adguard()
+        print(f"\n{result}\n")
+        # Always add a delay and wait for keypress for consistent behavior
+        time.sleep(2)  # Give users time to read the output
+        wait_for_keypress("Press Enter to close...")
+    elif command == "status":
+        result = get_adguard_status()
+        print(f"\nStatus: {result}\n")
+        # Always add a delay and wait for keypress for status commands
+        # This ensures users can read the output regardless of how the script was launched
+        time.sleep(2)  # Give users time to read the output
+        wait_for_keypress("Press Enter to close...")
+    else:
+        print(f"Error: Unknown command '{command}'")
+        print("Usage: adguard-runner [start|stop|status]")
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
+

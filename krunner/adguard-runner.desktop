@@ -1,0 +1,24 @@
+[Desktop Entry]
+Name=AdGuard Runner
+Comment=Control AdGuard CLI
+Exec=/home/luisandrs/.local/bin/adguard-runner
+Type=Application
+Terminal=true
+Categories=System;Utility;
+Actions=start;stop;status;
+
+[Desktop Action start]
+Name=Start AdGuard
+Exec=/home/luisandrs/.local/bin/adguard-runner start
+Terminal=true
+
+[Desktop Action stop]
+Name=Stop AdGuard
+Exec=/home/luisandrs/.local/bin/adguard-runner stop
+Terminal=true
+
+[Desktop Action status]
+Name=AdGuard Status
+Exec=/home/luisandrs/.local/bin/adguard-runner status
+Terminal=true
+
