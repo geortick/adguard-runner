@@ -53,12 +53,12 @@ check_dependencies() {
     fi
     
     # Check for AdGuard for Linux
-56|    if [ ! -f "/opt/AdGuard/AdGuard" ] && [ ! -f "/opt/AdGuardHome/AdGuardHome" ]; then
-57|        print_warning "AdGuard for Linux binary not found"
-58|        print_warning "Make sure AdGuard for Linux is properly installed."
-59|        missing_deps=1
-60|    else
-61|        print_success "AdGuard for Linux binary found."
+    if [ ! -f "/opt/adguard-cli/adguard-cli" ]; then
+        print_warning "AdGuard for Linux binary not found"
+        print_warning "Make sure AdGuard for Linux is properly installed."
+        missing_deps=1
+    else
+        print_success "AdGuard for Linux binary found."
     fi
     
     if [ $missing_deps -eq 1 ]; then

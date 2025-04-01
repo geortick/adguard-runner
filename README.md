@@ -9,7 +9,7 @@ AdGuard Runner provides a convenient way to start, stop, and check the status of
 ## Requirements
 
 - Python 3.6+
-- AdGuard for Linux installed (typically at `/opt/AdGuard/adguard` or `/opt/AdGuard/adguardhome`)
+- AdGuard for Linux installed (typically at `/opt/adguard-cli/adguard-cli`)
 - KDE Plasma (for KRunner integration)
 - Terminal emulator (konsole, gnome-terminal, etc.)
 
