@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # AdGuard Runner Installation Script
-# This script installs the AdGuard Runner script and its KRunner integration
+# This script installs the AdGuard Runner script for AdGuard for Linux and its KRunner integration
 #
 
 # ANSI color codes
@@ -52,13 +52,13 @@ check_dependencies() {
         print_success "Python 3 is installed."
     fi
     
-    # Check for AdGuard CLI
-    if [ ! -f "/opt/adguard-cli/adguard-cli" ]; then
-        print_warning "AdGuard CLI not found at /opt/adguard-cli/adguard-cli"
-        print_warning "Make sure AdGuard Home is properly installed."
-        missing_deps=1
-    else
-        print_success "AdGuard CLI found."
+    # Check for AdGuard for Linux
+56|    if [ ! -f "/opt/AdGuard/AdGuard" ] && [ ! -f "/opt/AdGuardHome/AdGuardHome" ]; then
+57|        print_warning "AdGuard for Linux binary not found"
+58|        print_warning "Make sure AdGuard for Linux is properly installed."
+59|        missing_deps=1
+60|    else
+61|        print_success "AdGuard for Linux binary found."
     fi
     
     if [ $missing_deps -eq 1 ]; then
@@ -186,7 +186,7 @@ verify_installation() {
 
 # Main installation function
 main() {
-    echo -e "${CYAN}===== AdGuard Runner Installation =====${NC}"
+    echo -e "${CYAN}===== AdGuard for Linux Runner Installation =====${NC}"
     echo
     
     check_dependencies
@@ -198,15 +198,15 @@ main() {
         echo
         echo -e "${GREEN}Installation completed successfully!${NC}"
         echo
-        echo -e "You can now use AdGuard Runner with the following commands:"
-        echo -e "  ${CYAN}adguard-runner${NC} - Interactive menu"
-        echo -e "  ${CYAN}adguard-runner start${NC} - Start AdGuard"
-        echo -e "  ${CYAN}adguard-runner stop${NC} - Stop AdGuard"
-        echo -e "  ${CYAN}adguard-runner status${NC} - Check AdGuard status"
+        echo -e "You can now use AdGuard for Linux Runner with the following commands:"
+202|        echo -e "  ${CYAN}adguard-runner${NC} - Interactive menu"
+203|        echo -e "  ${CYAN}adguard-runner start${NC} - Start AdGuard for Linux"
+204|        echo -e "  ${CYAN}adguard-runner stop${NC} - Stop AdGuard for Linux"
+205|        echo -e "  ${CYAN}adguard-runner status${NC} - Check AdGuard for Linux status"
         echo
         echo -e "You can also use it through KRunner by pressing Alt+Space and typing 'adguard'."
         echo
-        echo -e "Thank you for installing AdGuard Runner!"
+        echo -e "Thank you for installing AdGuard for Linux Runner!"
     else
         echo
         echo -e "${YELLOW}Installation completed with warnings.${NC}"

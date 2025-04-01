@@ -1,15 +1,15 @@
 # AdGuard Runner
 
-A command-line utility with KRunner integration for controlling AdGuard Home on Linux systems.
+A command-line utility with KRunner integration for controlling AdGuard for Linux systems.
 
 ## Description
 
-AdGuard Runner provides a convenient way to start, stop, and check the status of AdGuard Home from both the command line and KDE's KRunner interface. It features an interactive menu, colorized output, progress indicators, and terminal detection to ensure optimal user experience in any environment.
+AdGuard Runner provides a convenient way to start, stop, and check the status of AdGuard for Linux from both the command line and KDE's KRunner interface. It features an interactive menu, colorized output, progress indicators, and terminal detection to ensure optimal user experience in any environment.
 
 ## Requirements
 
 - Python 3.6+
-- AdGuard Home CLI installed (typically at `/opt/adguard-cli/adguard-cli`)
+- AdGuard for Linux installed (typically at `/opt/AdGuard/adguard` or `/opt/AdGuard/adguardhome`)
 - KDE Plasma (for KRunner integration)
 - Terminal emulator (konsole, gnome-terminal, etc.)
 
@@ -67,9 +67,9 @@ adguard-runner
 
 Direct commands:
 ```bash
-adguard-runner start   # Start AdGuard Home
-adguard-runner stop    # Stop AdGuard Home
-adguard-runner status  # Check AdGuard Home status
+adguard-runner start   # Start AdGuard for Linux
+adguard-runner stop    # Stop AdGuard for Linux
+adguard-runner status  # Check AdGuard for Linux status
 ```
 
 ### KRunner
@@ -77,8 +77,8 @@ adguard-runner status  # Check AdGuard Home status
 1. Press Alt+Space (or your configured KRunner shortcut)
 2. Type "adguard" to see available actions
 3. Select one of the following:
-   - AdGuard Start - Start AdGuard Home
-   - AdGuard Stop - Stop AdGuard Home
+   - AdGuard Start - Start AdGuard for Linux
+   - AdGuard Stop - Stop AdGuard for Linux
    - AdGuard Status - Check current status
 
 ## Features
@@ -106,6 +106,6 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Acknowledgments
 
-- [AdGuard Home](https://github.com/AdguardTeam/AdGuardHome) for the underlying DNS filtering capability
+- [AdGuard for Linux](https://adguard.com/en/adguard-linux/overview.html) for the underlying ad blocking capability
 - KDE Plasma for the KRunner integration capabilities
 
